@@ -1,0 +1,171 @@
+/* static/style.css (Replace the entire content of your existing stylesheet) */
+
+/* --- Base Styles --- */
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #343a40;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 50px; 
+
+    background-image: url('../img/background.jpg'); 
+    background-color: #00346b;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-attachment: fixed;
+    background-size: cover;
+}
+
+.container {
+    max-width: 550px; /* Slightly wider to accommodate bigger timers */
+    width: 90%;
+    background-color: #ececec;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+}
+
+h1 {
+    color: #343a40;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 1.8em;
+    font-weight: 600;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+/* --- Form Styles --- */
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+input[type="number"],
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+    font-size: 1em;
+}
+
+input[type="number"]:focus,
+select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* --- Button Group Styles --- */
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 25px; 
+    margin-bottom: 30px; /* Added margin to push the display area down */
+}
+
+.button-group button {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    padding: 12px 15px;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, opacity 0.3s;
+}
+
+/* Button Colors (as defined in previous CSS) */
+#startButton { background-color: #007bff; }
+#startButton:hover { background-color: #0056b3; }
+#resetButton { background-color: #6c757d; }
+#resetButton:hover { background-color: #5a6268; }
+
+#startButton:disabled, 
+#pauseResumeButton:disabled, 
+#resetButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* --- DUAL TIMER DISPLAY STYLES --- */
+
+#dual-timer-display {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef; /* Separator line */
+}
+
+.timer-column {
+    flex-basis: 50%;
+    text-align: center;
+}
+
+.timer-label {
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.timer-display-box { 
+    /* INCREASED FONT SIZE HERE */
+    font-size: 4.5em; 
+    letter-spacing: 2px;
+    padding: 15px 0;
+    margin-top: 5px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: 1px solid #e9ecef;
+}
+
+#total-timer-display { 
+    background-color: #f7f7f7; 
+    color: #007bff; 
+}
+
+#interval-timer-display { 
+    background-color: #f7fff7; 
+    color: #28a745; 
+}
+
+.message-display-box {
+    padding: 10px;
+    margin-top: 15px; /* Increased margin */
+    border-radius: 6px;
+    font-size: 0.9em;
+    text-align: center;
+    line-height: 1.4;
+}
+
+#message {
+    background-color: #e6f7ff; 
+    border: 1px solid #b3e0ff;
+    color: #0056b3;
+}
+
+#interval-message {
+    background-color: #e6ffe6; 
+    border: 1px solid #b3ffb3;
+    color: #1e7e34;
+}

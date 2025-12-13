@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}ROWING APP{% endblock %}
+
+{% block content %}
+    
+    <h1>🚣 Rowing Machine Program 🚣</h1>
+    
+    <form id="timerForm">
+        <div class="form-group">
+            <label for="task_type">Workout Type:</label>
+            <select name="task_type" id="task_type">
+                {% for option in options.task_type %}
+                <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="difficulty">Difficulty:</label>
+            <select name="difficulty" id="difficulty">
+                {% for option in options.difficulty %}
+                <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="total_time">Total Time (minutes):</label>
+            <input type="number" id="total_time" name="total_time" value="30" min="15" max="240" required>
+        </div>
+        
+        <div class="button-group">
+            <button type="submit" id="startButton">Generate</button>
+            <button type="button" id="pauseResumeButton">Start</button>
+            <button type="button" id="resetButton" style="background-color: #6c757d;">Reset</button>
+        </div>
+    </form>
+    
+    <div id="dual-timer-display">
+        <div class="timer-column">
+            <label class="timer-label" style="color: #007bff;">TOTAL TIME LEFT</label>
+            <div id="total-timer-display" class="timer-display-box">00:00</div>
+            <div id="message" class="message-display-box">{% if message %}{{ message | safe }}{% endif %}</div>
+        </div>
+        <div class="timer-column">
+            <label class="timer-label" style="color: #28a745;">INTERVAL TIMER</label>
+            <div id="interval-timer-display" class="timer-display-box">00:00</div>
+            <div id="interval-message" class="message-display-box">{% if interval_message %}{{ interval_message | safe }}{% endif %}</div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block head_styles %}
+<style>
+    /* ... existing CSS ... */
+    
+    .timer-display-box { 
+        font-size: 3em; 
+        text-align: center;
+        padding: 10px 0;
+        margin-top: 5px;
+        border-radius: 8px;
+        font-weight: 700;
+        border: 1px solid #e9ecef;
+    }
+    
+    #total-timer-display { 
+        background-color: #f7f7f7; 
+        color: #007bff; /* Blue for total timer */
+    }
+    
+    #interval-timer-display { 
+        background-color: #f7fff7; 
+        color: #28a745; /* Green for interval timer */
+    }
+
+    .message-display-box {
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        text-align: center;
+    }
+    
+    #message { /* Total timer message area */
+        background-color: #e6f7ff; 
+        border: 1px solid #b3e0ff;
+        color: #0056b3;
+    }
+    
+    #interval-message { /* Interval timer message area */
+        background-color: #e6ffe6; 
+        border: 1px solid #b3ffb3;
+        color: #1e7e34;
+    }
+
+    /* ... existing CSS for button-group ... */
+</style>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    // --- Element References ---
+    const form = document.getElementById('timerForm');
+    const setButton = document.getElementById('startButton');
+    const pauseResumeButton = document.getElementById('pauseResumeButton');
+    const resetButton = document.getElementById('resetButton');
+    
+    // Total Timer Elements
+    const totalTimerDisplay = document.getElementById('total-timer-display');
+    const totalMessageDisplay = document.getElementById('message');
+    
+    // Interval Timer Elements (NEW)
+    const intervalTimerDisplay = document.getElementById('interval-timer-display');
+    const intervalMessageDisplay = document.getElementById('interval-message');
+
+    // --- State Variables ---
+    let totalInterval; // For the main timer
+    let intervalInterval; // For the shorter interval timer (NEW)
+    let initialTotalSeconds = 0;
+    let secondsRemaining = 0; // Total timer seconds left
+    let intervalSecondsRemaining = 0; // Interval timer seconds left (NEW)
+    let intervalDuration = 0; // The fixed duration for each interval (NEW)
+    let isPaused = false;
+    let isRunning = false;
+    let isSet = false;
+    let intervalList = [];
+    let currentIntervalIndex = 0; // Tracks which interval we are on (NEW)
+
+    // --- Core Timer Logic ---
+    function updateTimerDisplay(seconds, displayElement) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        
+        const displayTime = 
+            `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        
+        displayElement.textContent = displayTime;
+    }
+
+    function updateControlState() {
+        setButton.disabled = isRunning; 
+        pauseResumeButton.disabled = !isSet; 
+        resetButton.disabled = !isSet && !isRunning; 
+        
+        if (isRunning) {
+            pauseResumeButton.textContent = 'Pause';
+            pauseResumeButton.style.backgroundColor = '#f77f00'; // Orange
+        } else if (isPaused) {
+            pauseResumeButton.textContent = 'Resume';
+            pauseResumeButton.style.backgroundColor = '#17a2b8'; // Blue
+        } else {
+            pauseResumeButton.textContent = 'Start';
+            pauseResumeButton.style.backgroundColor = '#28a745'; // Green
+        }
+    }
+    
+    // Modified: intervalCountdownTick to iterate through the list
+    function intervalCountdownTick() {
+        if (intervalSecondsRemaining <= 0) {
+            
+            // Check if there are more intervals left
+            if (currentIntervalIndex < intervalsList.length - 1) {
+                
+                currentIntervalIndex++; // Move to the next interval
+                
+                // Load the duration and message for the next interval
+                intervalDuration = intervalsList[currentIntervalIndex][0];
+                intervalSecondsRemaining = intervalDuration; 
+                intervalMessageDisplay.innerHTML = intervalsList[currentIntervalIndex][1];
+                
+            } else {
+                // This logic handles the case where the TOTAL timer runs out 
+                // but the interval timer ticks down to 0, if they don't align perfectly.
+                // We should stop the interval timer here as the total timer is in charge of stopping everything.
+                clearInterval(intervalInterval); 
+                // Do not update the message; let the total timer handle the final stop message.
+            }
+        }
+        updateTimerDisplay(intervalSecondsRemaining, intervalTimerDisplay);
+        intervalSecondsRemaining--;
+    }
+
+    // Total Timer Tick (Modified)
+    function totalCountdownTick() {
+        if (secondsRemaining <= 0) {
+            // Both timers must stop when total timer hits zero
+            clearInterval(totalInterval);
+            clearInterval(intervalInterval); 
+            
+            totalTimerDisplay.textContent = "00:00";
+            intervalTimerDisplay.textContent = "00:00";
+            totalMessageDisplay.innerHTML = "Workout complete.";
+            intervalMessageDisplay.innerHTML = "All intervals complete.";
+            
+            isRunning = false;
+            isPaused = false;
+            isSet = false;
+            updateControlState();
+            return;
+        }
+
+        updateTimerDisplay(secondsRemaining, totalTimerDisplay);
+        secondsRemaining--;
+    }
+
+    // --- Control Functions ---
+    
+    function startTimers() {
+        // Start both intervals
+        totalInterval = setInterval(totalCountdownTick, 1000);
+        intervalInterval = setInterval(intervalCountdownTick, 1000);
+    }
+    
+    function stopTimers() {
+        // Stop both intervals
+        clearInterval(totalInterval);
+        clearInterval(intervalInterval);
+    }
+
+// Modified: setTimer function now accepts the full list
+    function setTimer(totalSeconds, incomingIntervalsList) {
+        initialTotalSeconds = totalSeconds;
+        secondsRemaining = totalSeconds;
+        
+        // --- NEW: Store the full list and initialize the first interval ---
+        intervalsList = incomingIntervalsList;
+        currentIntervalIndex = 0; 
+        
+        // Get length and message for the first interval
+        intervalDuration = intervalsList[currentIntervalIndex][0]; // Length
+        intervalSecondsRemaining = intervalDuration;
+        
+        // Display the message for the first interval
+        intervalMessageDisplay.innerHTML = intervalsList[currentIntervalIndex][1]; 
+        // ------------------------------------------------------------------
+        
+        isRunning = false;
+        isPaused = false;
+        isSet = true;
+
+        updateTimerDisplay(secondsRemaining, totalTimerDisplay);
+        updateTimerDisplay(intervalSecondsRemaining, intervalTimerDisplay);
+        
+        updateControlState(); 
+    }
+
+    function toggleStartPauseResume() {
+        if (!isSet) {
+            totalMessageDisplay.innerHTML = "<span style='color: red;'>Please press 'Generate' first!</span>";
+            return;
+        }
+
+        if (isRunning) {
+            // PAUSE
+            isRunning = false;
+            isPaused = true;
+            stopTimers();
+            totalMessageDisplay.innerHTML = "Timers Paused.";
+            
+        } else if (isPaused || secondsRemaining === initialTotalSeconds) {
+            // RESUME or START
+            isRunning = true;
+            isPaused = false;
+            
+            if (secondsRemaining === initialTotalSeconds && secondsRemaining > 0) {
+                 totalMessageDisplay.innerHTML = `Timers started for ${Math.floor(initialTotalSeconds / 60)} minutes. Counting down...`;
+            } else {
+                 totalMessageDisplay.innerHTML = "Timers Resumed. Counting down...";
+            }
+            
+            startTimers(); // Start both intervals
+        } 
+        
+        updateControlState();
+    }
+
+    function resetTimer() {
+        stopTimers();
+        initialTotalSeconds = 0;
+        secondsRemaining = 0; 
+        intervalSecondsRemaining = 0;
+        intervalDuration = 0;
+        isPaused = false; 
+        isRunning = false;
+        isSet = false;
+        currentInterval = 0;
+
+        updateTimerDisplay(0, totalTimerDisplay); 
+        updateTimerDisplay(0, intervalTimerDisplay);
+        
+        totalMessageDisplay.innerHTML = "Timer reset. Enter new settings and press 'Generate'.";
+        intervalMessageDisplay.innerHTML = "Next interval: 0 minutes.";
+        updateControlState(); 
+    }
+
+    // --- Event Listeners ---
+    
+    // 1. Set Timer Button (Form Submission)
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault(); 
+        
+        if (isRunning) {
+             totalMessageDisplay.innerHTML = "<span style='color: red;'>Timers are running! Pause or Reset it before setting a new time.</span>";
+             return;
+        }
+
+        const formData = new FormData(form);
+        
+        const response = await fetch('/', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json(); 
+
+        if (result.success) {
+            
+            // --- NEW: Pass the full intervals list to setTimer ---
+            setTimer(result.total_time_seconds, result.intervals_data);
+            totalMessageDisplay.innerHTML = result.message;
+            
+        } else {
+            totalMessageDisplay.innerHTML = `<span style="color: red;">${result.message}</span>`;
+            intervalMessageDisplay.innerHTML = `Error.`;
+        }
+
+    });
+
+    // 2. Start/Pause/Resume Button
+    pauseResumeButton.addEventListener('click', toggleStartPauseResume);
+    
+    // 3. Reset Button
+    resetButton.addEventListener('click', resetTimer);
+
+    // Initialize button state on load
+    updateTimerDisplay(0, totalTimerDisplay); 
+    updateTimerDisplay(0, intervalTimerDisplay); 
+    updateControlState(); 
+
+</script>
+{% endblock %}
