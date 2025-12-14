@@ -164,6 +164,7 @@
             // Check if there are more intervals left
             if (currentIntervalIndex < intervalsList.length - 1) {
                 
+                playSound()
                 currentIntervalIndex++; // Move to the next interval
                 
                 // Load the duration and message for the next interval
@@ -181,6 +182,11 @@
         }
         updateTimerDisplay(intervalSecondsRemaining, intervalTimerDisplay);
         intervalSecondsRemaining--;
+    }
+
+    function playSound() {
+        var audio = new Audio("{{ url_for('static', filename='media/beep-329314.mp3') }}");
+        audio.play(); // Play the sound
     }
 
     // Total Timer Tick (Modified)
