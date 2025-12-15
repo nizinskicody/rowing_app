@@ -198,14 +198,16 @@
             
             totalTimerDisplay.textContent = "00:00";
             intervalTimerDisplay.textContent = "00:00";
-            totalMessageDisplay.innerHTML = "Workout complete.";
-            intervalMessageDisplay.innerHTML = "All intervals complete.";
+            totalMessageDisplay.innerHTML = "🎆 Workout complete. 🎆";
+            intervalMessageDisplay.innerHTML = "🎆 All intervals complete. 🎆";
+            playSound();
             
             isRunning = false;
             isPaused = false;
             isSet = false;
             updateControlState();
             return;
+
         }
 
         updateTimerDisplay(secondsRemaining, totalTimerDisplay);
