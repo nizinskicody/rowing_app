@@ -81,7 +81,7 @@ select:focus {
 .button-group button {
     flex-grow: 1;
     flex-shrink: 1;
-    flex-basis: 0;
+    flex-basis: 1;
     padding: 12px 15px;
     color: white;
     border: none;
@@ -140,13 +140,23 @@ select:focus {
 }
 
 #total-timer-display { 
-    background-color: #f7f7f7; 
+    background-color: #f3f7ff; 
     color: #007bff; 
 }
 
 #interval-timer-display { 
     background-color: #f7fff7; 
     color: #28a745; 
+}
+
+#spm-display { 
+    background-color: #f7f7f7; 
+    color: #343a40; 
+}
+
+#res-display { 
+    background-color: #f7f7f7; 
+    color: #343a40; 
 }
 
 .message-display-box {
@@ -159,13 +169,7 @@ select:focus {
 }
 
 #message {
-    background-color: #e6f7ff; 
-    border: 1px solid #b3e0ff;
-    color: #0056b3;
-}
-
-#interval-message {
-    background-color: #e6ffe6; 
-    border: 1px solid #b3ffb3;
-    color: #1e7e34;
+    background-color: #ffffff; 
+    border: 1px solid #eee;
+    color: #343a40;
 }

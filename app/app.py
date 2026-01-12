@@ -1,13 +1,13 @@
+import json
 from flask import (
     Flask,
     render_template,
+    jsonify,
     request, 
-    jsonify
 )
 from generator import (
     WORKOUT_TYPES, DIFFICULTIES,
     generate_rowing_workout,
-    convert_for_frontend
 )
 
 app = Flask(__name__)
@@ -17,9 +17,8 @@ app = Flask(__name__)
 
 # ---------------------
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 def index():
-    # Placeholder data for the dropdown menus
     dropdown_options = {
         'task_type': WORKOUT_TYPES,
         'difficulty': DIFFICULTIES
@@ -28,6 +27,17 @@ def index():
     initial_message = "Set your task details and total time, then press 'Set Timer'."
     initial_interval_message = "Interval insructions will be displayed here."
 
+    # This block handles the initial GET request to load the page
+    return render_template(
+        'index.html', 
+        options=dropdown_options, 
+        message=initial_message,
+        interval_message=initial_interval_message
+    )
+
+
+@app.route('/dashboard', methods=['POST'])
+def dashboard():
     if request.method == 'POST':
         # Get the data from the form
         task_type = request.form.get('task_type')
@@ -47,33 +57,15 @@ def index():
             error_message = f"Error: {e}. Please enter a valid positive number for 'Total Time'."
             return jsonify({'success': False, 'message': error_message})
 
-        # Success message
-        success_message = (
-            f"Timer set for {total_time_minutes} minutes "
-            f"for a **{difficulty} {task_type}** workout. "
-            "Press 'Start' to begin."
-        )
-
         workout_intervals = generate_rowing_workout(
             task_type, difficulty, total_time_minutes
         )
-        workout_details = convert_for_frontend(workout_intervals)
+        workout_details = json.dumps(workout_intervals)
+    
+    return render_template('dashboard.html',
+                           total_time_seconds = total_time_minutes *60,
+                           workout_details=workout_details)
 
-        # We return all necessary data to the frontend
-        return jsonify({
-            'success': True,
-            'message': success_message,
-            'total_time_seconds': total_time_minutes * 60,
-            'intervals_data': workout_details
-        })
-
-    # This block handles the initial GET request to load the page
-    return render_template(
-        'index.html', 
-        options=dropdown_options, 
-        message=initial_message,
-        interval_message=initial_interval_message
-    )
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

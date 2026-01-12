@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}🚣 ROWING APP 🚣{% endblock %}
+
+{% block content %}
+<div>
+    <h1>Workout Dashboard</h1>
+
+    <div class="button-group">
+        <button type="button" id="pauseResumeButton" style="background-color: #28a745;">Start</button>
+        <button type="button" id="resetButton" style="background-color: #6c757d;">Reset</button>
+        <button type="button" id="back-button" onclick="window.location.href='/'" style="background-color: #bb0707;">
+            Back to Setup
+        </button>
+    </div>
+    
+    <div id="workout-grid">
+        <div class="grid-item timer-blue">
+            <label class="timer-label">TOTAL TIME</label>
+            <div id="total-timer-display" class="timer-display-box">00:00</div>
+        </div>
+        <div class="grid-item timer-green">
+            <label class="timer-label">INTERVAL</label>
+            <div id="interval-timer-display" class="timer-display-box">00:00</div>
+        </div>
+        <div class="grid-item metric-orange">
+            <label class="timer-label">TARGET SPM</label>
+            <div id="spm-display" class="timer-display-box">0</div>
+        </div>
+        <div class="grid-item metric-gray">
+            <label class="timer-label">RESISTANCE</label>
+            <div id="res-display" class="timer-display-box">0</div>
+        </div>
+    </div>
+
+    <div id="message" class="main-instruction-box">
+        READY TO ROW?
+    </div>
+
+</div>
+
+    
+{% endblock %}
+
+{% block head_styles %}
+<style>
+
+    .button-group { display: flex; gap: 10px; margin-bottom: 20px; }
+    .button-group button, .back-link { 
+        flex: 1; padding: 15px; border-radius: 8px; border: none; 
+        color: white; font-weight: bold; cursor: pointer; text-decoration: none; text-align: center;
+    }
+    #pauseResumeButton { background-color: #28a745; }
+
+    .dashboard-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 10px;
+    }
+
+    /* THE GRID DEFINITION */
+    #workout-grid {
+        display: grid;
+        /* Two equal columns */
+        grid-template-columns: 1fr 1fr; 
+        /* Two rows that adjust to content height */
+        grid-template-rows: auto auto;   
+        gap: 20px;
+        width: 100%;
+        margin-bottom: 25px;
+    }
+
+    .grid-item {
+        background: #ffffff;
+        padding: 30px 10px;
+        border-radius: 15px;
+        text-align: center;
+        border: 2px solid #eee;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        /* Ensures content inside stays centered */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .timer-label {
+        font-weight: 800;
+        font-size: 1rem;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .timer-display-box {
+        font-size: clamp(1.7rem, 10vw, 3rem); /* Scales based on screen size */
+        font-weight: 800;
+        font-family: 'Courier New', monospace;
+    }
+
+    /* Message box at bottom */
+    .main-instruction-box {
+        width: 100%;
+        background: #212529;
+        color: #fff;
+        padding: 40px 20px;
+        border: 2px solid #eee;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        font-size: 2.2rem;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 15px;
+        text-transform: uppercase;
+        box-sizing: border-box;
+    }
+
+    /* Target SPM specific: Changes color when in the "Red Zone" */
+    .spm-high {
+        color: #bb0707 !important;
+    }
+
+</style>
+{% endblock %}
+bb0707
+{% block scripts %}
+<script>
+    const intervalsList = {{ workout_details | safe }};
+    const totalTimeSeconds = {{ total_time_seconds }};
+
+    // --- Element References ---
+    const pauseResumeButton = document.getElementById('pauseResumeButton');
+    const resetButton = document.getElementById('resetButton');
+    const totalTimerDisplay = document.getElementById('total-timer-display');
+    const intervalTimerDisplay = document.getElementById('interval-timer-display');
+    
+    // Fixed: Ensure this matches what is used in updateMetrics
+    const intervalMessageDisplay = document.getElementById('message'); 
+    const spmDisplay = document.getElementById('spm-display');
+    const resDisplay = document.getElementById('res-display');
+
+    let totalInterval;
+    let secondsRemaining = totalTimeSeconds;
+    let intervalSecondsRemaining = 0;
+    let currentIntervalIndex = 0;
+    let isPaused = false;
+    let isRunning = false;
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateControlState() {
+        if (isRunning) {
+            pauseResumeButton.textContent = 'Pause';
+            pauseResumeButton.style.backgroundColor = '#f77f00';
+        } else if (isPaused) {
+            pauseResumeButton.textContent = 'Resume';
+            pauseResumeButton.style.backgroundColor = '#17a2b8';
+        } else {
+            pauseResumeButton.textContent = 'Start';
+            pauseResumeButton.style.backgroundColor = '#28a745';
+        }
+    }
+
+    // Fixed: Use intervalMessageDisplay consistently
+    function updateMetrics(spm, res, msg) {
+        intervalMessageDisplay.textContent = msg;
+        resDisplay.textContent = res;
+        spmDisplay.textContent = spm;
+
+        if (parseInt(spm) >= 30) {
+            spmDisplay.classList.add('spm-high');
+        } else {
+            spmDisplay.classList.remove('spm-high');
+        }
+    }
+
+    function playSound() {
+        const audio = new Audio("{{ url_for('static', filename='media/beep-329314.mp3') }}");
+        audio.play().catch(e => console.log("Audio play blocked"));
+    }
+
+    function tick() {
+        if (secondsRemaining <= 0) {
+            clearInterval(totalInterval);
+            playSound();
+            totalTimerDisplay.textContent = "00:00";
+            intervalTimerDisplay.textContent = "00:00";
+            intervalMessageDisplay.innerHTML = "Workout complete!";
+            isRunning = false;
+            updateControlState();
+            return;
+        }
+
+        if (intervalSecondsRemaining <= 0) {
+            if (currentIntervalIndex < intervalsList.length - 1) {
+                currentIntervalIndex++;
+                
+                // IMPORTANT: Ensure this matches your Python list order
+                // If Python is [msg, time, spm, res]:
+                const [msg, time, spm, res] = intervalsList[currentIntervalIndex];
+                
+                intervalSecondsRemaining = time;
+                updateMetrics(spm, res, msg);
+                playSound();
+                
+            }
+        }
+
+        totalTimerDisplay.textContent = formatTime(secondsRemaining);
+        intervalTimerDisplay.textContent = formatTime(intervalSecondsRemaining);
+
+        secondsRemaining--;
+        intervalSecondsRemaining--;
+    }
+
+    function initTimer() {
+        // Match the unpacking here too
+        const [msg, time, spm, res] = intervalsList[0];
+        intervalSecondsRemaining = time;
+        
+        updateMetrics(spm, res, msg); // This sets the initial SPM/Res text
+        
+        totalTimerDisplay.textContent = formatTime(secondsRemaining);
+        intervalTimerDisplay.textContent = formatTime(intervalSecondsRemaining);
+    }
+
+    pauseResumeButton.addEventListener('click', () => {
+        if (isRunning) {
+            isRunning = false;
+            isPaused = true;
+            clearInterval(totalInterval);
+        } else {
+            isRunning = true;
+            isPaused = false;
+            totalInterval = setInterval(tick, 1000);
+        }
+        updateControlState();
+    });
+
+    resetButton.addEventListener('click', () => {
+        location.reload();
+    });
+
+        initTimer();
+        updateControlState();
+
+        window.addEventListener('keydown', function(e) {
+        // Check if the pressed key is the Spacebar
+        // ' ' is the standard value for the space bar
+        if (e.key === ' ' || e.code === 'Space') {
+            
+            // Prevent the default behavior (like scrolling down the page)
+            e.preventDefault();
+            
+            // Trigger the click logic of your existing button
+            pauseResumeButton.click();
+        }
+    });
+
+</script>
+{% endblock %}

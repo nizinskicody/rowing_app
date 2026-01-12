@@ -46,7 +46,7 @@ def generate_endurance_workout(
     return [
         (
             "Steady State Row", 
-            main_time, 
+            main_time*60, 
             spm, 
             resistance
         )
@@ -79,16 +79,16 @@ def generate_interval_workout(
     workout = []
     for i in range(num_cycles):
         workout.append(
-            (f"Work Interval {i+1}", work_duration, work_spm, base_resistance)
+            (f"Work Interval {i+1}", work_duration*60, work_spm, base_resistance)
         )
         workout.append(
-            (f"Rest Interval {i+1}", rest_duration, rest_spm, base_resistance)
+            (f"Rest Interval {i+1}", rest_duration*60, rest_spm, base_resistance)
         )
         
     # Account for any time left over
     remaining_time = main_time - sum(set_[1] for set_ in workout)
     if remaining_time > 0.1:
-         workout.append(("Final Easy Row", remaining_time, 22, 5))
+         workout.append(("Final Easy Row", remaining_time*60, 22, 5))
 
     return workout
 
@@ -117,10 +117,10 @@ def generate_strength_workout(
     workout = []
     for i in range(num_sets):
         workout.append(
-            (f"Power Pull {i+1}", rep_duration, power_spm, high_resistance)
+            (f"Power Pull {i+1}", rep_duration*60, power_spm, high_resistance)
         )
         workout.append(
-            (f"Active Recovery {i+1}", rest_duration, 18, 5)
+            (f"Active Recovery {i+1}", rest_duration*60, 18, 5)
         )
 
     return workout
@@ -181,18 +181,10 @@ def generate_rowing_workout(
             raise ValueError(f"Unknown workout type: {workout_type}.")
     
     # Warm-up (Low SPM, Low Resistance)
-    warmup_set = ("Warm-up", warmup_time, 20, 3)
+    warmup_set = ("Warm-up", warmup_time*60, 20, 3)
     
     # Cool-down (Low SPM, Low Resistance)
-    cooldown_set = ("Cool-down", cooldown_time, 18, 2)
+    cooldown_set = ("Cool-down", cooldown_time*60, 18, 2)
     
     return [warmup_set] + main_sets + [cooldown_set]
-
-def convert_for_frontend(inputs: list[WorkoutSet]) -> list[tuple[int, str]]:
-    outputs = []
-    for input in inputs:
-        time_int = input[1]
-        message = f"{input[0]}... SPM: ~{input[2]}, Resistance: {input[3]}"
-        outputs.append((int(time_int*60), message))
-    return outputs
 
