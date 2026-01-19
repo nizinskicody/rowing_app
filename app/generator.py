@@ -64,7 +64,6 @@ def generate_interval_workout(
     
     # Adjust work/rest ratio based on difficulty
     work_duration = 1.0 # 1 minute
-    rest_duration = 1.0
     
     match difficulty.lower():
         case 'Hard 😖':
@@ -87,8 +86,8 @@ def generate_interval_workout(
         
     # Account for any time left over
     remaining_time = main_time - sum(set_[1] for set_ in workout)
-    if remaining_time > 0.1:
-         workout.append(("Final Easy Row", remaining_time*60, 22, 5))
+    if remaining_time < (rest_duration + work_duration):
+         workout.append(("Final Easy Row", remaining_time*60, rest_spm, 5))
 
     return workout
 
@@ -132,8 +131,8 @@ def generate_surprise_workout(
     """Generates a random mix of endurance, interval, and cardio sets."""
     workouts_available = [generate_endurance_workout, generate_interval_workout, generate_strength_workout]
     
-    # Split the main time into 2-3 segments and assign a random workout type
-    num_segments = random.randint(2, 3)
+    # Split the main time into 3-5 segments and assign a random workout type
+    num_segments = random.randint(3, 6)
     segment_time = main_time / num_segments
     
     workout = []
