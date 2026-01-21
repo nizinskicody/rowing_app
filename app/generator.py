@@ -1,5 +1,6 @@
 import random
 from typing import Any
+import numpy as np
 
 # (set_name, time_minutes, stroke_rate, resistance_level)
 WorkoutSet = tuple[str, float, int, int] 
@@ -9,8 +10,9 @@ INTERVAL_SECONDS = INTERVAL_MINUTES * 60
 
 WORKOUT_TYPES = [
     'Cardio 🫀',
-    'Endurance 🕓',
-    'Interval ⚡',
+    'Interval ⏳',
+    'Pyramid-SPM 📶',
+    'Pyramid-Time ⏱️',
     'Strength 💪',
     'Surprise 🎱'
 ]
@@ -24,36 +26,30 @@ DIFFICULTIES = [
 
 def get_intensity_params(difficulty: str) -> dict[str, Any]:
     """Returns base parameters (SPM, Resistance) based on difficulty."""
-    match difficulty.lower():
+    match difficulty:
         case 'Easy 🥱':
             return {'spm': 22, 'resistance': 4, 'effort_mult': 0.8}
         case 'Medium 😎':
-            return {'spm': 26, 'resistance': 6, 'effort_mult': 1.0}
+            return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0}
         case 'Hard 😖':
-            return {'spm': 30, 'resistance': 8, 'effort_mult': 1.2}
+            return {'spm': 26, 'resistance': 6, 'effort_mult': 1.2}
         case _:
             return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0} # Default
 
+
 def generate_endurance_workout(
-    main_time: int,
+    main_time: int | float,
     difficulty: str
 ) -> list[WorkoutSet]:
     """Generates a steady-state endurance workout."""
     params = get_intensity_params(difficulty)
-    spm = int(params['spm'] * 0.9)  # Endurance is slightly lower rate
+    spm = params['spm']
     resistance = params['resistance']
-    
-    return [
-        (
-            "Steady State Row", 
-            main_time*60, 
-            spm, 
-            resistance
-        )
-    ]
+    return [("Steady State Row", main_time*60, spm, resistance)]
+
 
 def generate_interval_workout(
-    main_time: int,
+    main_time: int | float,
     difficulty: str
 ) -> list[WorkoutSet]:
     """Generates a high-intensity interval training (HIIT) workout."""
@@ -65,13 +61,13 @@ def generate_interval_workout(
     # Adjust work/rest ratio based on difficulty
     work_duration = 1.0 # 1 minute
     
-    match difficulty.lower():
-        case 'Hard 😖':
-            rest_duration = 0.5 # Shorter rest for hard
-        case 'Medium 😎':
-            work_duration = 1.5 # Longer work period
+    match difficulty:
         case 'Easy 🥱':
             rest_duration = 1.5 # Longer rest period
+        case 'Medium 😎':
+            work_duration = 1.5 # Longer work period
+        case 'Hard 😖':
+            rest_duration = 0.5 # Shorter rest for hard
 
     num_cycles = int(main_time // (work_duration + rest_duration))
     
@@ -83,7 +79,7 @@ def generate_interval_workout(
         workout.append(
             (f"Rest Interval {i+1}", rest_duration*60, rest_spm, base_resistance)
         )
-        
+
     # Account for any time left over
     remaining_time = main_time - sum(set_[1] for set_ in workout)
     if remaining_time < (rest_duration + work_duration):
@@ -91,26 +87,110 @@ def generate_interval_workout(
 
     return workout
 
+
+def generate_rate_pyramid_workout(
+    main_time: int | float,
+    difficulty: str,
+) -> list[WorkoutSet]:
+    """Generates a pyramid workout that increases, then decreses in intensity"""
+    if main_time < 20:
+        pattern = '12321'
+    else:
+        pattern = '1234321'
+
+    match difficulty:
+        case 'Easy 🥱':
+            multiplier = 1.5
+        case 'Medium 😎':
+            multiplier = 1.7
+        case 'Hard 😖':
+            multiplier = 1.9
+
+    n_segments = len(pattern) * 2
+    segment_time = main_time / n_segments
+    base = get_intensity_params(difficulty)
+    rest_period = ('Rest', int(segment_time*60), base['spm'], base['resistance'])
+
+    workout = []
+    for i, interval in enumerate(pattern):
+
+        if i < len(pattern)//2:
+            section = 'Climbing'
+        elif i > len(pattern)//2:
+            section = 'Descending'
+        else:
+            section = 'Peak'
+
+        interval_num = int(interval)
+        work_period = (f'Work Period {i+1}: {section}', int(segment_time*60),
+                       int(base['spm'] + interval_num*multiplier), base['resistance'])
+        workout.append(work_period)
+        workout.append(rest_period)
+
+    return workout
+
+
+def generate_time_pyramid_workout(
+    main_time: int | float,
+    difficulty: str,
+) -> list[WorkoutSet]:
+    """Generates a pyramid workout that increases, then decreses in intensity"""
+    if main_time < 24:
+        pattern = '12321'
+    else:
+        pattern = '1234321'
+
+    match difficulty:
+        case 'Easy 🥱':
+            rest_duration = 0.75
+        case 'Medium 😎':
+            rest_duration = 0.5
+        case 'Hard 😖':
+            rest_duration = 0.5
+
+    base = get_intensity_params(difficulty)
+    rest_period = ('Rest', rest_duration*60, base['spm'], base['resistance'])
+    nonrest_time = main_time - rest_duration * len(pattern)
+    pattern_num = np.array(list(pattern)).astype(int)
+    interval_times = pattern_num/pattern_num.sum() * nonrest_time
+
+    workout = []
+    for i, (time, interval) in enumerate(zip(interval_times, list(pattern))):
+
+        if i < len(pattern)//2:
+            section = 'Climbing'
+        elif i > len(pattern)//2:
+            section = 'Descending'
+        else:
+            section = 'Peak'
+
+        interval_num = int(interval)
+        work_period = (f'Work Period {i+1}: {section}', int(time*60),
+                       base['spm'] + interval_num*1, base['resistance'])
+        workout.append(work_period)
+        workout.append(rest_period)
+
+    return workout
+
+
 def generate_strength_workout(
-    main_time: int,
+    main_time: int | float,
     difficulty: str
 ) -> list[WorkoutSet]:
     """Generates a low-rate, high-force strength workout."""
-    params = get_intensity_params(difficulty)
     power_spm = 20
-    high_resistance = 8 if params['resistance'] < 8 else 10 # Force a high damper setting
     
-    # Use short, intense bursts followed by rest
-    rep_duration = 0.5 # 30 seconds
-    rest_duration = 1.5 # 90 seconds (more rest needed for max force)
-    
-    match difficulty.lower():
-        case 'Hard 😖':
-            rep_duration = 1.0 # Longer work period
-            rest_duration = 1.0
+    match difficulty:
         case 'Easy 🥱':
-            high_resistance = 7 # Slightly lower resistance for easier adaptation
-            
+            high_resistance = 6 # Slightly lower resistance for easier adaptation
+            rep_duration, rest_duration = 0.5, 1.0
+        case 'Medium 😎':
+            high_resistance = 7
+            rep_duration, rest_duration = 0.5, 1.0
+        case 'Hard 😖':
+            high_resistance = 8
+            rep_duration, rest_duration = 1.0, 1.0
+
     num_sets = int(main_time // (rep_duration + rest_duration))
     
     workout = []
@@ -124,8 +204,9 @@ def generate_strength_workout(
 
     return workout
 
+
 def generate_surprise_workout(
-    main_time: int,
+    main_time: int | float,
     difficulty: str
 ) -> list[WorkoutSet]:
     """Generates a random mix of endurance, interval, and cardio sets."""
@@ -144,6 +225,7 @@ def generate_surprise_workout(
              workout.append((f"Surprise Segment {i+1}: {set_name}", time, spm, res))
 
     return workout
+
 
 def generate_rowing_workout(
     workout_type: str,
@@ -168,10 +250,14 @@ def generate_rowing_workout(
 
     # 2. Main Workout Generation using match/case
     match workout_type:
-        case 'Endurance 🕓' | 'Cardio 🫀':
+        case 'Cardio 🫀':
             main_sets = generate_endurance_workout(main_time, difficulty)
-        case 'Interval ⚡':
+        case 'Interval ⏳':
             main_sets = generate_interval_workout(main_time, difficulty)
+        case 'Pyramid-SPM 📶':
+            main_sets = generate_rate_pyramid_workout(main_time, difficulty)
+        case 'Pyramid-Time ⏱️':
+            main_sets = generate_time_pyramid_workout(main_time, difficulty)
         case 'Strength 💪':
             main_sets = generate_strength_workout(main_time, difficulty)
         case 'Surprise 🎱':
