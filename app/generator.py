@@ -269,7 +269,9 @@ def generate_rowing_workout(
     warmup_set = ("Warm-up", warmup_time*60, 20, 3)
     
     # Cool-down (Low SPM, Low Resistance)
-    cooldown_set = ("Cool-down", cooldown_time*60, 18, 2)
+    main_set_times = sum([x[1] for x in main_sets])
+    extra_cooldown_time = int(total_time_minutes*60 - main_set_times - warmup_time*60)
+    cooldown_set = ("Cool-down", extra_cooldown_time, 18, 2)
     
     return [warmup_set] + main_sets + [cooldown_set]
 
