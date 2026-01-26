@@ -194,11 +194,8 @@
         if (intervalSecondsRemaining <= 0) {
             if (currentIntervalIndex < intervalsList.length - 1) {
                 currentIntervalIndex++;
-                
-                // IMPORTANT: Ensure this matches your Python list order
-                // If Python is [msg, time, spm, res]:
+
                 const [msg, time, spm, res] = intervalsList[currentIntervalIndex];
-                
                 intervalSecondsRemaining = time;
                 updateMetrics(spm, res, msg);
                 playSound();
