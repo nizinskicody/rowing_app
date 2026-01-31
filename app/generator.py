@@ -28,13 +28,13 @@ def get_intensity_params(difficulty: str) -> dict[str, Any]:
     """Returns base parameters (SPM, Resistance) based on difficulty."""
     match difficulty:
         case 'Easy 🥱':
-            return {'spm': 22, 'resistance': 4, 'effort_mult': 0.8}
+            return {'spm': 22, 'resistance': 4}
         case 'Medium 😎':
-            return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0}
+            return {'spm': 24, 'resistance': 5}
         case 'Hard 😖':
-            return {'spm': 26, 'resistance': 6, 'effort_mult': 1.2}
+            return {'spm': 26, 'resistance': 6}
         case _:
-            return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0} # Default
+            return {'spm': 24, 'resistance': 5} # Default
 
 
 def generate_endurance_workout(
@@ -149,13 +149,13 @@ def generate_time_pyramid_workout(
             rest_duration = 0.5
 
     base = get_intensity_params(difficulty)
-    rest_period = ('Rest', rest_duration*60, base['spm'], base['resistance'])
+    rest_period = ('Rest', rest_duration*60, base['spm']-2, base['resistance'])
     nonrest_time = main_time - rest_duration * len(pattern)
     pattern_num = np.array(list(pattern)).astype(int)
     interval_times = pattern_num/pattern_num.sum() * nonrest_time
 
     workout = []
-    for i, (time, interval) in enumerate(zip(interval_times, list(pattern))):
+    for i, time in enumerate(interval_times):
 
         if i < len(pattern)//2:
             section = 'Climbing'
@@ -164,9 +164,8 @@ def generate_time_pyramid_workout(
         else:
             section = 'Peak'
 
-        interval_num = int(interval)
         work_period = (f'Work Period {i+1}: {section}', int(time*60),
-                       base['spm'] + interval_num*1, base['resistance'])
+                       base['spm'] + 3, base['resistance'])
         workout.append(work_period)
         workout.append(rest_period)
 
