@@ -3,10 +3,10 @@ from typing import Any
 import numpy as np
 
 # (set_name, time_minutes, stroke_rate, resistance_level)
-WorkoutSet = tuple[str, float, int, int] 
+WorkoutSet = tuple[str, float, int, int]
 
-INTERVAL_MINUTES = 5 
-INTERVAL_SECONDS = INTERVAL_MINUTES * 60
+WARMUP_SPM = 18
+REST_SPM = 20
 
 WORKOUT_TYPES = [
     'Cardio 🫀',
@@ -28,13 +28,13 @@ def get_intensity_params(difficulty: str) -> dict[str, Any]:
     """Returns base parameters (SPM, Resistance) based on difficulty."""
     match difficulty:
         case 'Easy 🥱':
-            return {'spm': 22, 'resistance': 4, 'effort_mult': 0.8}
+            return {'spm': 22, 'resistance': 4}
         case 'Medium 😎':
-            return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0}
+            return {'spm': 24, 'resistance': 5}
         case 'Hard 😖':
-            return {'spm': 26, 'resistance': 6, 'effort_mult': 1.2}
+            return {'spm': 26, 'resistance': 6}
         case _:
-            return {'spm': 24, 'resistance': 5, 'effort_mult': 1.0} # Default
+            return {'spm': 24, 'resistance': 5} # Default
 
 
 def generate_endurance_workout(
@@ -55,7 +55,6 @@ def generate_interval_workout(
     """Generates a high-intensity interval training (HIIT) workout."""
     params = get_intensity_params(difficulty)
     work_spm = params['spm'] + 4 # Higher SPM for max effort
-    rest_spm = 20
     base_resistance = params['resistance']
     
     # Adjust work/rest ratio based on difficulty
@@ -74,16 +73,16 @@ def generate_interval_workout(
     workout = []
     for i in range(num_cycles):
         workout.append(
-            (f"Work Interval {i+1}", work_duration*60, work_spm, base_resistance)
+            (f"Work Interval {i+1}/{num_cycles}", work_duration*60, work_spm, base_resistance)
         )
         workout.append(
-            (f"Rest Interval {i+1}", rest_duration*60, rest_spm, base_resistance)
+            (f"Rest Interval {i+1}/{num_cycles}", rest_duration*60, REST_SPM, base_resistance)
         )
 
     # Account for any time left over
     remaining_time = main_time - sum(set_[1] for set_ in workout)
     if remaining_time < (rest_duration + work_duration):
-         workout.append(("Final Easy Row", remaining_time*60, rest_spm, 5))
+         workout.append(("Final Easy Row", remaining_time*60, REST_SPM, 5))
 
     return workout
 
@@ -109,21 +108,19 @@ def generate_rate_pyramid_workout(
     n_segments = len(pattern) * 2
     segment_time = main_time / n_segments
     base = get_intensity_params(difficulty)
-    rest_period = ('Rest', int(segment_time*60), base['spm'], base['resistance'])
+    rest_period = ('Rest', int(segment_time*60), REST_SPM, base['resistance'])
 
     workout = []
     for i, interval in enumerate(pattern):
 
-        if i < len(pattern)//2:
-            section = 'Climbing'
-        elif i > len(pattern)//2:
-            section = 'Descending'
-        else:
-            section = 'Peak'
-
         interval_num = int(interval)
-        work_period = (f'Work Period {i+1}: {section}', int(segment_time*60),
-                       int(base['spm'] + interval_num*multiplier), base['resistance'])
+        work_period = (
+            f'Work Interval {i+1}/{len(pattern)}',
+            int(segment_time*60),
+            int(base['spm'] + interval_num*multiplier),
+            base['resistance']
+        )
+
         workout.append(work_period)
         workout.append(rest_period)
 
@@ -135,7 +132,7 @@ def generate_time_pyramid_workout(
     difficulty: str,
 ) -> list[WorkoutSet]:
     """Generates a pyramid workout that increases, then decreses in intensity"""
-    if main_time < 24:
+    if main_time < 20:
         pattern = '12321'
     else:
         pattern = '1234321'
@@ -149,24 +146,22 @@ def generate_time_pyramid_workout(
             rest_duration = 0.5
 
     base = get_intensity_params(difficulty)
-    rest_period = ('Rest', rest_duration*60, base['spm'], base['resistance'])
+    rest_period = ('Rest', rest_duration*60, REST_SPM, base['resistance'])
+
     nonrest_time = main_time - rest_duration * len(pattern)
     pattern_num = np.array(list(pattern)).astype(int)
     interval_times = pattern_num/pattern_num.sum() * nonrest_time
 
     workout = []
-    for i, (time, interval) in enumerate(zip(interval_times, list(pattern))):
+    for i, time in enumerate(interval_times):
 
-        if i < len(pattern)//2:
-            section = 'Climbing'
-        elif i > len(pattern)//2:
-            section = 'Descending'
-        else:
-            section = 'Peak'
+        work_period = (
+            f'Work Interval {i+1}/{len(interval_times)}',
+            int(time*60),
+            base['spm'] + 4,
+            base['resistance']
+        )
 
-        interval_num = int(interval)
-        work_period = (f'Work Period {i+1}: {section}', int(time*60),
-                       base['spm'] + interval_num*1, base['resistance'])
         workout.append(work_period)
         workout.append(rest_period)
 
@@ -178,7 +173,7 @@ def generate_strength_workout(
     difficulty: str
 ) -> list[WorkoutSet]:
     """Generates a low-rate, high-force strength workout."""
-    power_spm = 20
+    power_spm = 24
     
     match difficulty:
         case 'Easy 🥱':
@@ -199,7 +194,7 @@ def generate_strength_workout(
             (f"Power Pull {i+1}", rep_duration*60, power_spm, high_resistance)
         )
         workout.append(
-            (f"Active Recovery {i+1}", rest_duration*60, 18, 5)
+            (f"Active Recovery {i+1}", rest_duration*60, REST_SPM-2, 5)
         )
 
     return workout
@@ -240,9 +235,9 @@ def generate_rowing_workout(
     if total_time_minutes < 15:
         raise ValueError("Total workout time must be at least 15 minutes.")
     
-    warmup_time = 5.0
-    cooldown_time = 5.0
+    warmup_time = cooldown_time = 5.0
     main_time = total_time_minutes - warmup_time - cooldown_time
+
     if main_time < 0: # Handle cases where total_time is too small
         main_time = total_time_minutes / 2
         warmup_time = total_time_minutes / 4
@@ -265,13 +260,11 @@ def generate_rowing_workout(
         case _:
             raise ValueError(f"Unknown workout type: {workout_type}.")
     
-    # Warm-up (Low SPM, Low Resistance)
-    warmup_set = ("Warm-up", warmup_time*60, 20, 3)
-    
-    # Cool-down (Low SPM, Low Resistance)
+    # Warm-up and cool-down (Low SPM, Low Resistance)
+    warmup_set = ("Warm-up", warmup_time*60, WARMUP_SPM, 2)
     main_set_times = sum([x[1] for x in main_sets])
     extra_cooldown_time = int(total_time_minutes*60 - main_set_times - warmup_time*60)
-    cooldown_set = ("Cool-down", extra_cooldown_time, 18, 2)
+    cooldown_set = ("Cool-down", extra_cooldown_time, WARMUP_SPM, 2)
     
     return [warmup_set] + main_sets + [cooldown_set]
 
